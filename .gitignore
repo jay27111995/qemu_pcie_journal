@@ -1,0 +1,19 @@
+# Ignore everything
+*
+
+# Except these
+!.gitignore
+!start_qemu.sh
+!scripts/
+!scripts/*.c
+!scripts/*.cpp
+!scripts/*.py
+!scripts/*.sh
+!scripts/Makefile
+
+# But ignore build artifacts in scripts
+scripts/*.o
+scripts/*.ko
+scripts/*.mod.c
+scripts/*.symvers
+scripts/*.order
