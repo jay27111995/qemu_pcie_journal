@@ -3,6 +3,7 @@
 
 # Except these
 !.gitignore
+!README.md
 !start_qemu.sh
 !scripts/
 !scripts/*.c
