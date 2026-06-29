@@ -1,7 +1,5 @@
 # QEMU PCIe Learning Journal
 
-A space for my computer science musings.
-
 ## Overview
 
 Scripts and examples for learning PCIe, VFIO, DMA, and Linux kernel driver development using QEMU.
