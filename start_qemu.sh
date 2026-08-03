@@ -23,7 +23,10 @@ $QEMU \
   -device edu-pci,id=pf1 \
   -device qemu-xhci,id=xhci \
   -device usb-edu-serial,bus=xhci.0 \
-  -virtfs local,path=$DIR/scripts,mount_tag=scripts,security_model=none
+  -virtfs local,path=$DIR/tests,mount_tag=tests,security_model=none \
+  -virtfs local,path=$DIR/utils,mount_tag=utils,security_model=none \
+  -virtfs local,path=$DIR/drivers,mount_tag=drivers,security_model=none \
+  -virtfs local,path=$DIR/examples,mount_tag=examples,security_model=none
 
 # Login: root (no password)
 # Exit with Ctrl-A X

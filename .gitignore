@@ -1,20 +1,35 @@
-# Ignore everything
+# Ignore everything by default
 *
 
-# Except these
+# Except these top-level files
 !.gitignore
 !README.md
 !start_qemu.sh
-!scripts/
-!scripts/*.c
-!scripts/*.cpp
-!scripts/*.py
-!scripts/*.sh
-!scripts/Makefile
 
-# But ignore build artifacts in scripts
-scripts/*.o
-scripts/*.ko
-scripts/*.mod.c
-scripts/*.symvers
-scripts/*.order
+# Allow new directory structure
+!drivers/
+!drivers/*.c
+!drivers/Makefile
+
+!tests/
+!tests/*/
+!tests/*/*.c
+!tests/*/*.cpp
+!tests/*/*.py
+!tests/*/*.sh
+
+!utils/
+!utils/*.py
+!utils/*.sh
+
+!examples/
+!examples/*.c
+!examples/*.cpp
+
+# Ignore build artifacts everywhere
+*.o
+*.ko
+*.mod.c
+*.symvers
+*.order
+*.cmd

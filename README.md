@@ -8,84 +8,97 @@ Scripts and examples for learning PCIe, VFIO, DMA, and Linux kernel driver devel
 
 ```bash
 ./start_qemu.sh  # Start QEMU with edu-pci devices
+
 # Inside guest:
-mount -t 9p -o trans=virtio scripts /mnt/scripts
+bash -c "$(cat /proc/cmdline | grep -o 'mount_all')" || {
+  mkdir -p /mnt/tests /mnt/utils /mnt/drivers /mnt/examples
+  mount -t 9p -o trans=virtio tests /mnt/tests
+  mount -t 9p -o trans=virtio utils /mnt/utils
+  mount -t 9p -o trans=virtio drivers /mnt/drivers
+  mount -t 9p -o trans=virtio examples /mnt/examples
+}
+
+# Or simply:
+bash /mnt/utils/mount_all.sh   # After mounting utils first
 ```
 
-## Scripts
+## Directory Structure
 
-### VFIO & DMA
+```
+qemu_learn/
+├── drivers/           # Kernel modules
+│   ├── edu_pci.c      # Linux kernel driver for edu-pci
+│   └── Makefile
+│
+├── tests/
+│   ├── vfio/          # VFIO userspace tests
+│   │   ├── test_vfio.py        # Basic BAR access
+│   │   ├── test_vfio_dma.py    # DMA mapping (Python)
+│   │   ├── test_edu_dma.cpp    # DMA + MSI-X (C++)
+│   │   ├── test_bad_dma.py     # IOMMU fault handling
+│   │   ├── test_ats.cpp        # Address Translation Services
+│   │   └── test_p2p.sh         # P2P device-to-device DMA
+│   │
+│   ├── interrupts/    # Interrupt tests
+│   │   ├── test_intx.py        # Legacy INTx
+│   │   ├── test_msix.py        # MSI-X via VFIO
+│   │   ├── test_msix_direct.py # Direct MSI-X programming
+│   │   └── test_msix_devmem.py # MSI-X via /dev/mem
+│   │
+│   └── nvme/          # NVMe tests
+│       ├── test_nvme.py        # NVMe queues (Python)
+│       └── test_nvme.cpp       # Full NVMe test (C++)
+│
+├── utils/             # Utility scripts
+│   ├── bind_vfio.sh   # Bind device to vfio-pci
+│   ├── setup_mount.sh # Mount single virtfs
+│   ├── mount_all.sh   # Mount all virtfs shares
+│   └── dma.py         # DMA helper functions
+│
+├── examples/          # C/C++ learning examples
+│   ├── eventfd_demo.c # Linux eventfd
+│   ├── epoll_demo.c   # epoll event loop
+│   └── *.cpp          # C++ examples
+│
+├── linux/             # Linux kernel source
+├── qemu -> ...        # Symlink to QEMU source
+└── start_qemu.sh      # Start QEMU VM
+```
 
-| Script | Description |
-|--------|-------------|
-| `test_vfio.py` | Basic VFIO device access - open device, map BAR, read registers |
-| `test_vfio_dma.py` | VFIO DMA mapping and transfer between host buffers |
-| `test_edu_dma.cpp` | C++ VFIO DMA test with MSI-X interrupt handling |
-| `test_bad_dma.py` | Test IOMMU fault handling with invalid DMA addresses |
-| `dma.py` | DMA utility functions |
+## Running Tests
 
-### Interrupts
+```bash
+# In guest - setup
+mount -t 9p -o trans=virtio utils /mnt/utils
+mount -t 9p -o trans=virtio tests /mnt/tests
+bash /mnt/utils/bind_vfio.sh
 
-| Script | Description |
-|--------|-------------|
-| `test_intx.py` | Legacy INTx interrupt handling via VFIO |
-| `test_msix.py` | MSI-X interrupt setup and handling |
-| `test_msix_direct.py` | Direct MSI-X programming |
-| `test_msix_devmem.py` | MSI-X via /dev/mem |
+# Run DMA test
+/mnt/tests/vfio/test_edu_dma
 
-### NVMe
+# Run interrupt test  
+python3 /mnt/tests/interrupts/test_msix.py
 
-| Script | Description |
-|--------|-------------|
-| `test_nvme.py` | NVMe controller test - submission/completion queues |
-| `test_nvme.cpp` | C++ NVMe test with full read/write/identify commands |
+# Run NVMe test
+/mnt/tests/nvme/test_nvme
+```
 
-### Advanced PCIe
+## Building
 
-| Script | Description |
-|--------|-------------|
-| `test_ats.cpp` | ATS (Address Translation Services) - device IOMMU translation requests |
-| `test_p2p.sh` | P2P DMA - device-to-device transfer without CPU |
+```bash
+# Compile C++ tests on host (binaries shared via virtfs)
+cd tests/vfio && g++ -o test_edu_dma test_edu_dma.cpp
 
-### Kernel Driver
-
-| Script | Description |
-|--------|-------------|
-| `edu_pci.c` | Linux kernel driver for edu-pci device (probe, BAR mapping, registers) |
-| `Makefile` | Build the kernel module |
-
-### C++ Examples
-
-| Script | Description |
-|--------|-------------|
-| `eventfd_demo.c` | Linux eventfd for thread signaling |
-| `epoll_demo.c` | epoll + eventfd + socket event loop |
-| `friend_demo.cpp` | C++ friend function example |
-| `friend_mult.cpp` | C++ friend operator overloading |
-| `unique_ptr_demo.cpp` | C++ smart pointer and move semantics |
-
-### Utilities
-
-| Script | Description |
-|--------|-------------|
-| `bind_vfio.sh` | Bind PCI device to vfio-pci driver |
-| `setup_mount.sh` | Mount virtfs shared folder |
-| `test_regs.py` | Basic register read/write test |
-| `test_usb.py` | USB device test |
+# Build kernel module (requires kernel headers)
+cd drivers && make KDIR=/path/to/linux
+```
 
 ## Requirements
 
-- QEMU with edu-pci and edu-nvme devices
+- QEMU with custom edu-pci device (in qemu/)
 - Linux kernel with VFIO and Intel IOMMU support
-- Guest: Debian or similar with Python3, g++
+- Guest: Debian or similar with Python3, gcc/g++
 
-## Building Kernel Module
+## Exit QEMU
 
-```bash
-# On host (with kernel source)
-cd scripts
-make KDIR=/path/to/linux
-
-# In guest
-insmod /mnt/scripts/edu_pci.ko
-```
+Press `Ctrl-A X`
