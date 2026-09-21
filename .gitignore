@@ -26,6 +26,9 @@
 !examples/*.c
 !examples/*.cpp
 
+!qemu_devices/
+!qemu_devices/*.c
+
 # Ignore build artifacts everywhere
 *.o
 *.ko
