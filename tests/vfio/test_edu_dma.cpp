@@ -13,7 +13,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/eventfd.h>
-#include <sys/select.h>
+#include <sys/epoll.h>
 #include <linux/vfio.h>
 
 // edu-pci registers (BAR0)
@@ -33,6 +33,7 @@ class EduPciDevice {
     int group_fd = -1;
     int device_fd = -1;
     int event_fd = -1;
+    int epoll_fd = -1;
     volatile uint32_t* bar0 = nullptr;
     size_t bar0_size = 0;
 
@@ -95,6 +96,15 @@ public:
         event_fd = eventfd(0, 0);
         if (event_fd < 0) { perror("eventfd"); return false; }
 
+        // Create epoll instance and add eventfd
+        epoll_fd = epoll_create1(0);
+        if (epoll_fd < 0) { perror("epoll_create1"); return false; }
+
+        epoll_event ev = { .events = EPOLLIN, .data = { .fd = event_fd } };
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event_fd, &ev) < 0) {
+            perror("epoll_ctl"); return false;
+        }
+
         // Get MSI-X info
         vfio_irq_info irq_info = { .argsz = sizeof(irq_info), .index = VFIO_PCI_MSIX_IRQ_INDEX };
         if (ioctl(device_fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info) < 0) {
@@ -117,17 +127,13 @@ public:
         if (ioctl(device_fd, VFIO_DEVICE_SET_IRQS, &irq) < 0) {
             perror("set irqs"); return false;
         }
-        printf("MSI-X vector 0 -> eventfd %d\n", event_fd);
+        printf("MSI-X vector 0 -> eventfd %d (epoll_fd %d)\n", event_fd, epoll_fd);
         return true;
     }
 
     bool wait_interrupt(int timeout_ms = 1000) {
-        fd_set fds;
-        FD_ZERO(&fds);
-        FD_SET(event_fd, &fds);
-        timeval tv = { timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
-
-        int ret = select(event_fd + 1, &fds, nullptr, nullptr, &tv);
+        epoll_event ev;
+        int ret = epoll_wait(epoll_fd, &ev, 1, timeout_ms);
         if (ret > 0) {
             uint64_t val;
             read(event_fd, &val, sizeof(val));  // Clear eventfd
@@ -225,6 +231,7 @@ public:
         if (bar0 && bar0 != MAP_FAILED) munmap((void*)bar0, bar0_size);
         if (src_buf && src_buf != MAP_FAILED) munmap(src_buf, PAGE_SIZE);
         if (dst_buf && dst_buf != MAP_FAILED) munmap(dst_buf, PAGE_SIZE);
+        if (epoll_fd >= 0) close(epoll_fd);
         if (event_fd >= 0) close(event_fd);
         if (device_fd >= 0) close(device_fd);
         if (group_fd >= 0) close(group_fd);
